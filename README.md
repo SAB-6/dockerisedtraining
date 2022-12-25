@@ -1,2 +1,3 @@
 # dockerisedtraining
-python
+
+Dockerised AWS Sagemaker training
