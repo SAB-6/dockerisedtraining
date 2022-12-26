@@ -1,0 +1,12 @@
+holoviews
+matplotlib
+seaborn
+sklearn
+scipy
+pandas
+numpy
+shap
+xgboost
+joblib
+boto3
+sagemaker
