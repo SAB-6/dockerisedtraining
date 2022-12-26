@@ -48,7 +48,7 @@ def run(mode):
         estimator.fit(inputs=f"file://{local_data_path}", job_name=job_name)
 
     elif mode == "sagemaker":
-        s3_output_location = "s3://{}/{}".format(bucket_name, project_name)
+        s3_output_location = f"s3://{bucket_name}/{project_name}"
         estimator = Estimator(
             image_uri=image_uri,
             role=role,
@@ -89,8 +89,8 @@ if __name__ == "__main__":
     role = os.getenv("AWS_SM_ROLE")
     aws_id = os.getenv("AWS_ID")
     region = os.getenv("AWS_REGION")
-    image_uri = "{}.dkr.ecr.{}.amazonaws.com/aws-train".format(aws_id, region)
-    print("Training image uri:{}".format(image_uri))
+    image_uri = f"{aws_id}.dkr.ecr.{region}.amazonaws.com/aws-train"
+    print(f"Training image uri:{image_uri}")
     instance_type = os.getenv("AWS_DEFAULT_INSTANCE")
     bucket_name = os.getenv("AWS_BUCKET")
 
