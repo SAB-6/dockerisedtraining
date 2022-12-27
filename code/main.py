@@ -3,6 +3,8 @@ import tarfile
 import time
 
 import boto3
+
+# from botocore.client import ClientError
 from sagemaker.estimator import Estimator
 from sagemaker.session import Session
 
@@ -61,9 +63,7 @@ def run(mode):
 
         estimator.fit(inputs=data_uri, job_name=job_name)
 
-        s3_output_uri = "s3://{}/{}/{}/output/model.tar.gz".format(
-            bucket_name, project_name, job_name
-        )
+        s3_output_uri = f"s3://{bucket_name}/{project_name}/{job_name}/output/model.tar.gz"
         s3 = boto_session.client("s3")
         s3_bucket, key_name = split_s3_bucket_key(s3_output_uri)
         s3.download_file(s3_bucket, key_name, "model.tar.gz")
@@ -80,7 +80,8 @@ def run(mode):
 
 if __name__ == "__main__":
 
-    local_output_path = "file://"
+    # local_output_path = "file://"
+    local_output_path = os.getenv("LOCAL_OUTPUT_PATH")
     local_data_path = os.getenv("DATA_PATH")
     project_name = "housing-price-prediction"
     job_name = project_name + time.strftime("-%Y-%m-%d-%H-%M", time.gmtime())
@@ -93,16 +94,38 @@ if __name__ == "__main__":
     print(f"Training image uri:{image_uri}")
     instance_type = os.getenv("AWS_DEFAULT_INSTANCE")
     bucket_name = os.getenv("AWS_BUCKET")
-
-    # comment this out if you have a bucket already or use specific bucket
-    # s3 = boto3.client('s3', region_name=region)
-    # s3.create_bucket(Bucket=bucket_name,CreateBucketConfiguration={'LocationConstraint': region})
+    access_key = os.getenv("AWS_ACCESS_KEY")
+    secret_key = os.getenv("AWS_SECRET_KEY")
+    
+    s3_client = boto3.client('s3', aws_access_key_id=access_key, 
+        aws_secret_access_key=secret_key, region_name=region)
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+        bucket_exist = True
+    except Exception as e:
+        bucket_exist = False
+        print(f"The bucket does not exist or you don't have na access\n{e}")
+    
+    if not bucket_exist:
+        try:
+            s3_client.create_bucket(Bucket=bucket_name,CreateBucketConfiguration={'LocationConstraint': region})
+            print(f"\n{bucket_name} has been created on AWS S3")
+        except Exception as e:
+            print(f"{bucket_name} cannot be created on S3\n{e}")
 
     # upload the data to sagemaker
-    boto_session = boto3.Session(region_name=region)
+    boto_session = boto3.Session( aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key, 
+        region_name=region)
     sm_session = Session(boto_session=boto_session)
-    data_uri = sm_session.upload_data(
+    try:
+        data_uri = sm_session.upload_data(
         local_data_path, bucket=bucket_name, key_prefix="data", extra_args=None
-    )
+        )
+    except boto3.exceptions.S3UploadFailedError as e:
+        print(e)
+    except Exception as e:
+        print(e)
+
     print(data_uri)
     run(mode="sagemaker")
